@@ -1,0 +1,7 @@
+# 开发回归产物(verify.js 生成, 不入库)
+verify_ch*.py
+
+# 本地工具
+.vscode/
+__pycache__/
+*.pyc
