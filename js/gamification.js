@@ -57,11 +57,17 @@ function levelOf(xp) { return Math.min(Math.floor(xp / 100), LEVELS.length - 1);
 function xpInLevel(xp) { return xp % 100; }
 
 function addXP(n, reason) {
+  const before = levelOf(state.xp);
   state.xp = Math.max(0, state.xp + n);
   saveState();
   renderXpBar();
   const cls = n > 0 ? "xp" : "xp-neg";
   toast(`<span class="${cls}">${n > 0 ? "+" : ""}${n} XP</span> ${reason}`);
+  // B1: 境界突破庆祝
+  if (n > 0) {
+    const after = levelOf(state.xp);
+    if (after > before) setTimeout(() => toast(`🌟 <b>境界突破</b> · 已臻「${LEVELS[after]}」!`), 420);
+  }
 }
 
 function toast(html) {

@@ -57,6 +57,9 @@ function renderChapter(id) {
     </div>
 
     <div id="pane-2" class="${tab === 2 ? "" : "hide"}">
+      <div class="clear-banner" id="clear-banner" style="display:none"></div>
+      <div class="trial-success" id="trial-success" style="display:none">⚡ 本境试炼全绿!Boss 之门已开 👿</div>
+      <div class="trial-fail-note" id="trial-fail-note" style="display:none">❌ 试炼未全绿 —— <button class="btn" id="btn-go-cultivate">🐍 回修炼区改代码</button></div>
       <div class="card"><h3>🧪 试炼 (${ch.tests.length} 条)</h3>
         ${testsHtml}
         <div class="btns"><button class="btn primary" id="btn-trial">⚡ 开始试炼(跑内置测试)</button>
@@ -64,7 +67,7 @@ function renderChapter(id) {
       </div>
       <div class="card gold" id="boss-card">
         <h3>👿 击败本境 Boss · ${ch.realm}(50 XP)</h3>
-        <div id="boss-body">${bossBodyHtml(ch)}</div>
+        <div id="boss-body">${chAllPassed(ch) ? bossBodyHtml(ch) : `<div class="boss-locked">🔒 Boss 试炼锁:先让试炼 <b>全部全绿</b> 才会现身(目前 ${chPassCount(ch)}/${ch.tests.length})。</div>`}</div>
       </div>
     </div>
 
@@ -133,6 +136,20 @@ function bindChapter(ch) {
 
   document.getElementById("btn-trial").addEventListener("click", () => runChapterTrial(ch));
   bindBoss(ch);
+
+  // C2: 试炼失败 → 一键回修炼区
+  const goCult = document.getElementById("btn-go-cultivate");
+  if (goCult) goCult.addEventListener("click", () => switchToTab(1));
+
+  // B2: 已通关章节重进时, 通关横幅直接挂着
+  if (state.cleared[ch.id]) showClearBanner(ch);
+}
+
+/* C2: 切到指定 tab (与顶部 tab 按钮同逻辑) */
+function switchToTab(i) {
+  const main = document.getElementById("main");
+  const tabBtns = main.querySelectorAll(".tab");
+  if (tabBtns[i]) tabBtns[i].click();
 }
 
 /* ---------- 漫画卡片 ---------- */
@@ -174,6 +191,8 @@ async function runChapterTrial(ch) {
     if (r.ok) {
       st.textContent = "✔";
       el.classList.add("passed");
+      const old = el.querySelector(".fail-msg");
+      if (old) old.remove();
       if (!(state.testsPassed[ch.id] || {})[r.id]) {
         state.testsPassed[ch.id] = state.testsPassed[ch.id] || {};
         state.testsPassed[ch.id][r.id] = true;
@@ -183,22 +202,58 @@ async function runChapterTrial(ch) {
     } else {
       st.textContent = "✘";
       el.classList.add("failed");
-      el.title = r.msg || "未通过";
+      // A1: 失败原因直接亮在条目下面, 不用悬停 tooltip 瞎猜
+      let msg = el.querySelector(".fail-msg");
+      if (!msg) { msg = document.createElement("div"); msg.className = "fail-msg"; el.appendChild(msg); }
+      msg.textContent = r.msg || "未通过";
+      msg.style.display = "block";
     }
   });
 
   btn.disabled = false;
+  const succEl = document.getElementById("trial-success");
+  const failEl = document.getElementById("trial-fail-note");
   if (allPass) {
     btn.textContent = "⚡ 试炼全绿! 去找 Boss";
     if (!hadPassBefore && !(state.failedRuns[ch.id] > 1)) {
       awardBadge("b_green");
       addXP(XP_RULES.allgreen, "一发入魂(首次全绿)");
     }
+    // B6/C2: 全绿横幅 + 解锁 Boss 门
+    if (succEl) succEl.style.display = "block";
+    if (failEl) failEl.style.display = "none";
+    revealBossIfLocked(ch);
     checkChapterClear(ch);
   } else {
     btn.textContent = "⚡ 还有没过, 修完再战";
+    if (succEl) succEl.style.display = "none";
+    if (failEl) failEl.style.display = "flex";   // C2: 提示条 + 回修炼区按钮
     saveState();
   }
+}
+
+/* A2: 试炼全绿后, 把锁着的 Boss 卡换成答题表单 */
+function revealBossIfLocked(ch) {
+  const body = document.getElementById("boss-body");
+  if (!body || !body.querySelector(".boss-locked")) return;
+  body.innerHTML = bossBodyHtml(ch);
+  bindBoss(ch);
+}
+
+/* B2: 通关横幅 (通关时弹, 重进已通关章节时常驻) */
+function showClearBanner(ch) {
+  const b = document.getElementById("clear-banner");
+  if (!b) return;
+  const idx = CHAPTERS.indexOf(ch);
+  const next = CHAPTERS[idx + 1];
+  const label = next ? "⚔️ 去「" + next.realm + "」" : "🏆 去个人道行";
+  b.innerHTML = `<b>🏆 ${ch.realm} 通关!</b> ${next ? "下一境已开启。" : "九境皆毕, 大道已成。"}
+    <span class="btns"><button class="btn" id="cb-next">${label}</button>
+    <button class="btn" id="cb-stay">留在这再修会儿</button></span>`;
+  b.style.display = "block";
+  b.querySelector("#cb-stay").onclick = () => { b.style.display = "none"; };
+  b.querySelector("#cb-next").onclick = () => { location.hash = next ? "#/ch/" + next.id : "#/profile"; };
+  b.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /* ---------- Boss ---------- */
@@ -262,13 +317,7 @@ function judgeBoss(ch, body, silent) {
     addXP(XP_RULES.boss, "击败 Boss");
   }
   checkChapterClear(ch);
-  if (state.cleared[ch.id] && !silent) {
-    const next = CHAPTERS[CHAPTERS.indexOf(ch) + 1];
-    setTimeout(() => {
-      if (confirm(`本境通关!${next ? " 去下一境「" + next.realm + "」?" : " 去个人道行看看?"}`)) {
-        location.hash = next ? "#/ch/" + next.id : "#/profile";
-      }
-    }, 300);
-  }
+  // B2: 通关横幅取代旧 confirm 弹窗
+  if (state.cleared[ch.id] && !silent) setTimeout(() => showClearBanner(ch), 400);
 }
 

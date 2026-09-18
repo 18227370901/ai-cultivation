@@ -29,7 +29,6 @@ function route() {
   const h = location.hash.replace(/^#\/?/, "");
   const parts = h.split("/").filter(Boolean);
   document.querySelectorAll("#nav a").forEach(a => a.classList.remove("on"));
-  const mapLink = document.querySelector('#nav a[data-route=""]');
   const target = parts[0];
   const navBtn = document.querySelector(`#nav a[data-route="${target || ""}"]`);
   if (navBtn) navBtn.classList.add("on");
@@ -119,10 +118,44 @@ function renderProfile() {
       <div class="b-desc">${b.desc}</div></div>`;
   });
   html += `</div></div>
+  <div class="card"><h3>💾 存档管理</h3>
+    <div class="muted" style="margin-bottom:10px">进度只在本浏览器 localStorage。导出 JSON 可带走存档(换设备/备份), 导入会替换当前全部进度。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="btn-export">⬇️ 导出存档 (JSON)</button>
+      <button class="btn" id="btn-import">⬆️ 导入存档</button>
+      <input type="file" id="file-import" accept=".json,.txt" style="display:none" />
+    </div></div>
   <div class="card"><h3>⚠️ 危险操作</h3>
     <button class="btn" onclick="resetState()">重修一世(清空全部存档)</button>
-    <span class="muted">点完就真的没了, 小白的吐槽也救不回来。</span></div>`;
+    <span class="muted">点完就真的没了, 小白的吐槽也救不回来。真丢了可以「⬆️ 导入存档」救回。</span></div>`;
   main.innerHTML = html;
+
+  // 导出/导入存档
+  document.getElementById("btn-export").onclick = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "ai-cultivation-save.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast("存档已导出", "ok");
+  };
+  document.getElementById("btn-import").onclick = () => document.getElementById("file-import").click();
+  document.getElementById("file-import").onchange = async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!data || data.v !== STATE_VERSION) throw new Error("版本不符");
+      if (!confirm(`导入存档: XP=${data.xp || 0}, 徽章${(data.badges || []).length}枚, 通关${Object.keys(data.cleared || {}).length}境。确认替换当前进度?`)) return;
+      Object.assign(state, data);
+      saveState();
+      toast("✅ 存档已导入!", "ok");
+      setTimeout(() => location.reload(), 600);
+    } catch (err) {
+      toast("导入失败: 存档损坏或版本不符(需 v=" + STATE_VERSION + ")", "err");
+    }
+  };
 }
 
 function resetState() {

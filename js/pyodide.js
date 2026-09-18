@@ -13,21 +13,57 @@ function showPyOverlay(on, msg) {
 async function getPyodide() {
   if (_pyo) return _pyo;
   showPyOverlay(true, "正在召唤 Python 灵体 (Pyodide / WASM)…");
-  try {
-    await new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = `https://cdn.jsdelivr.net/pyodide/v${PY_VERSION}/full/pyodide.js`;
-      s.onload = res;
-      s.onerror = () => rej(new Error("Pyodide 加载失败, 请检查网络(CDN)后刷新页面"));
-      document.head.appendChild(s);
-    });
-    const py = await loadPyodide({ indexURL: `https://cdn.jsdelivr.net/pyodide/v${PY_VERSION}/full/` });
-    await py.loadPackage(["numpy"]);
-    _pyo = py;
-  } finally {
-    showPyOverlay(false);
+  // A3: 双 CDN 容错, jsdelivr 抽风时自动切 unpkg
+  const CDNS = [
+    { script: `https://cdn.jsdelivr.net/pyodide/v${PY_VERSION}/full/pyodide.js`, index: `https://cdn.jsdelivr.net/pyodide/v${PY_VERSION}/full/` },
+    { script: `https://unpkg.com/pyodide@${PY_VERSION}/pyodide.js`,           index: `https://unpkg.com/pyodide@${PY_VERSION}/` }
+  ];
+  let lastErr = null;
+  for (const c of CDNS) {
+    try {
+      showPyOverlay(true, `正在召唤 Python 灵体 (${c.index.replace("https://", "").slice(0, 14)}…)`);
+      await new Promise((res, rej) => {
+        const s = document.createElement("script");
+        s.src = c.script;
+        s.onload = res;
+        s.onerror = () => { s.remove(); rej(new Error("脚本加载失败: " + c.script)); };
+        document.head.appendChild(s);
+      });
+      const py = await loadPyodide({ indexURL: c.index });
+      await py.loadPackage(["numpy"]);
+      _pyo = py;
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.warn("[Pyodide] 当前 CDN 失败, 尝试下一个:", c.index, e);
+    }
   }
+  showPyOverlay(false);
+  if (!_pyo) throw new Error("Pyodide 运行时装备召唤失败(全部 CDN 不可用, 请检查网络): " + (lastErr && lastErr.message));
   return _pyo;
+}
+
+/* A6: 各章用户级全局变量名 —— 每次「运行/试炼」前清掉, 防止旧版代码残留变量污染新 run */
+const USER_GLOBALS = {
+  ch0: ["a", "b", "sum_vec", "dot", "cosine_similarity", "v_cat_dog", "v_dog_cat", "v_cat_fridge", "sim_similar", "sim_diff"],
+  ch1: ["orders", "top", "refund"],
+  ch2: ["rng", "X", "y", "w", "b", "lr", "epochs", "pred", "err", "final_loss", "knn_predict", "train_x", "train_y"],
+  ch3: ["rng", "dirs", "X_out", "X_in", "X", "y", "W1", "b1", "W2", "b2", "forward", "accuracy", "lr", "acc"],
+  ch4: ["img", "conv2d", "k", "edges"],
+  ch5: ["softmax", "self_attention", "query", "keys", "values", "out", "weights"],
+  ch6: ["my_prompt"],
+  ch7: ["KB", "VOCAB", "embed", "cos", "rag_answer"],
+  ch8: ["rng", "W", "r", "A", "B", "alpha", "forward_with_lora", "x"],
+  ch9: ["KB", "VOCAB", "mini_embed", "mini_rag"]
+};
+function purgeUserGlobals(chapter) {
+  if (!_pyo) return;
+  const names = USER_GLOBALS[chapter.id] || [];
+  if (!names.length) return;
+  const lit = names.map(n => "'" + n + "'").join(",");
+  try {
+    _pyo.runPython("for _n in [" + lit + "]: globals().pop(_n, None)");
+  } catch (e) { /* 尽力而为, 不阻塞运行 */ }
 }
 
 function _indent(src, n) {
@@ -38,6 +74,7 @@ function _indent(src, n) {
 /* 运行用户代码(修炼区「运行」按钮) */
 async function runUserCode(chapter, code) {
   const py = await getPyodide();
+  purgeUserGlobals(chapter);   // A6: 清掉上一版残留变量
   let out = "";
   py.setStdout({ batched: s => { out += s + "\n"; } });
   try {
@@ -63,6 +100,7 @@ async function runTrial(chapter, code) {
     catch (e) { showPyOverlay(false); return { ok: false, error: "Pandas 加载失败: " + e.message, raw: "" }; }
     showPyOverlay(false);
   }
+  purgeUserGlobals(chapter);   // A6: 清掉上一版残留变量
   const pyTests = chapter.tests.filter(t => t.type === "py");
   const defs = pyTests.map(t => t.py).join("\n\n");
   const fnList = pyTests.map(t => t.fn).join(", ");

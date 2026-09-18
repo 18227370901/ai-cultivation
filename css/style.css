@@ -177,6 +177,35 @@ p.sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
 }
 .clear-banner .flame { font-size: 40px; }
 .clear-banner h3 { font-size: 20px; color: var(--gold); margin: 8px 0; }
+.clear-banner > b { color: var(--gold); font-size: 16px; }
+.clear-banner .btns { display: flex; gap: 10px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.clear-banner .btn { background: var(--gold); color: #1a1004; font-weight: 700; border: none; }
+
+/* 试炼反馈条 (全绿 / 未全绿) */
+.trial-success {
+  margin: 0 0 14px; padding: 14px 16px; border-radius: 12px; font-size: 14px; text-align: center;
+  color: #7ee787; background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.5);
+}
+.trial-fail-note {
+  margin: 0 0 14px; padding: 12px 16px; border-radius: 12px; font-size: 14px; align-items: center; gap: 10px;
+  color: var(--gold); background: rgba(255,179,71,.08); border: 1px solid rgba(255,179,71,.4);
+}
+.trial-fail-note button {
+  background: var(--gold); color: #1a1004; font-weight: 700; font-size: 12px;
+  padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;
+}
+
+/* A1: 试炼失败详情(直接亮出来, 不靠悬停) */
+.test-item .fail-msg {
+  display: none; margin-top: 6px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(255,71,87,.08); border-left: 3px solid #ff4d5a;
+  color: #ff8f98; font-size: 12px; line-height: 1.6; word-break: break-all;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* A2: Boss 试炼锁 */
+.boss-locked { padding: 10px 0; color: var(--muted); font-size: 13px; }
+.boss-locked b { color: var(--gold); }
 
 /* 排行榜 / 个人 */
 .rank-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; margin-bottom: 6px; background: var(--panel2); font-size: 14px; }
@@ -241,5 +270,20 @@ p.sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
 }
 .boss-q div label:hover { border-color: var(--gold-dim); }
 .boss-q div label input { margin-right: 8px; }
+
+/* B5: 移动端适配 (≤720px) */
+@media (max-width: 720px) {
+  .wrap { padding: 12px; }
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { white-space: nowrap; }
+  .comic-grid { grid-template-columns: 1fr; }
+  .test-item { padding: 10px 12px; }
+  .rank-row { flex-wrap: wrap; }
+  .rank-row .r-xp { margin-left: 0; }
+  .clear-banner { padding: 16px; }
+  .mascot, #mascot { max-width: 200px; bottom: 12px; left: 12px; }
+  #btn-go-cultivate { white-space: normal; }
+  .trial-fail-note { flex-wrap: wrap; }
+}
 
 

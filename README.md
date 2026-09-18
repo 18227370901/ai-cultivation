@@ -81,6 +81,6 @@ node --check js/**/*.js     # JS 语法检查
 ## FAQ
 
 - **必须联网吗?** 是。Pyodide 的 WASM 运行时和 numpy/pandas 包从 CDN(jsdelivr) 按需下载, 首次约 40MB, 之后浏览器缓存。
-- **换电脑会丢进度吗?** 会。存档只在本浏览器 localStorage, 无云端同步(这是设计, 不是 bug)。
+- **换电脑会丢进度吗?** 会。存档只在本浏览器 localStorage, 无云端同步(这是设计, 不是 bug)——但可以在「个人道行 → 存档管理」导出 JSON 带走, 在新设备导入即可。
 - **浏览器支持?** 现代 Chromium / Firefox / Safari 均可; 首次运行数据坊(ch1)试炼时 Pandas 包下载约 30MB, 请耐心等待遮罩提示。
 
